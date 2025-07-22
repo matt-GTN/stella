@@ -1,0 +1,16 @@
+# Fichiers d'environnement
+.env
+
+# Fichiers système macOS
+.DS_Store
+
+# Fichiers compilés et caches Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Fichiers d'envrionnement virtuel Python
+venv/
+stella/
+notebooks/Mathis/.DS_Store
+reports/.DS_Store

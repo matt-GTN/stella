@@ -1,0 +1,11 @@
+# agent/.streamlit/config.toml
+
+[server]
+enableCORS = true
+corsHeaders = ["*"]
+
+[theme]
+secondaryBackgroundColor="#33FFBD"
+primaryColor = "#33FFBD"
+linkColor = "#33FFBD"
+font="sans serif"

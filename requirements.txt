@@ -1,0 +1,30 @@
+# --- Interface Web ---
+streamlit==1.46.0
+
+# --- Gestion des Clés API ---
+python-dotenv==1.1.1
+
+# --- Manipulation et Analyse de Données ---
+pandas==2.2.3
+scikit-learn==1.6.1
+numpy==2.2.5
+yfinance==0.2.64
+
+# --- Communication API ---
+requests==2.32.4
+
+# --- Ecosystème LangChain & LangGraph ---
+langchain-openai==0.3.24
+langgraph==0.4.8
+langsmith==0.4.1
+langchain-core==0.3.66
+
+# --- Visualisation ---
+plotly==6.0.1
+graphviz==0.21
+playwright==1.52.0
+
+# --- Notebooks ---
+nbformat==5.10.4
+pathlib==1.0.1
+kaleido==1.0.0

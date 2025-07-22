@@ -208,7 +208,7 @@ def agent_node(state: AgentState):
     # On invoque le LLM avec la liste de messages complète
     # Cette liste est locale et ne modifie pas l'état directement
     response = llm.bind_tools(available_tools).invoke(current_messages)
-    
+    print(f"response.content: {response.content}")
     return {"messages": [response]}
 
 # Noeud 2 : execute_tool_node, exécute les outils en se basant sur la décision de l'agent_node (Noeud 1).
@@ -632,11 +632,11 @@ def prepare_profile_display_node(state: AgentState):
         final_message = AIMessage(content="Désolé, je n'ai pas pu récupérer le profil de l'entreprise.")
         return {"messages": [final_message]}
 
-    # Le LLM va générer une phrase d'introduction sympa. On lui passe juste le contenu.
     prompt = f"""
     Voici les informations de profil pour une entreprise au format JSON :
     {tool_message.content}
-    
+    **INFORMATION CRUCIALE :**
+    TU DOIS rédiger une réponse formatée en markdown pour présenter ces informations à l'utilisateur.
     Rédige une réponse la plus exhaustive et agréable possible pour présenter ces informations à l'utilisateur.
     Mets en avant le nom de l'entreprise, son secteur et son CEO, mais n'omet aucune information qui n'est pas null dans le JSON.
     Tu n'afficheras pas l'image du logo, l'UI s'en chargera, et tu n'as pas besoin de la mentionner.
@@ -646,7 +646,7 @@ def prepare_profile_display_node(state: AgentState):
     Termine en donnant le lien vers leur site web.
     """
     response = llm.invoke(prompt)
-    
+    print(f"response.content: {response.content}")
     final_message = AIMessage(content=response.content)
     
     # On attache le JSON pour que le front-end puisse afficher l'image du logo !

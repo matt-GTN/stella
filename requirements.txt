@@ -14,10 +14,10 @@ yfinance==0.2.64
 requests==2.32.4
 
 # --- Ecosystème LangChain & LangGraph ---
-langchain-openai==0.3.24
+langchain-groq==0.3.6
 langgraph==0.4.8
 langsmith==0.4.1
-langchain-core==0.3.66
+langchain-core==0.3.68
 
 # --- Visualisation ---
 plotly==6.0.1

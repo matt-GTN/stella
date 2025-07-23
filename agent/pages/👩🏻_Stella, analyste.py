@@ -52,7 +52,7 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
 # --- Affichage des messages existant depuis l'historique---
-for msg in st.session_state.messages:
+for i, msg in enumerate(st.session_state.messages):
     if isinstance(msg, AIMessage):
         with st.chat_message("assistant", avatar=STELLA_AVATAR):
             st.markdown(msg.content)
@@ -61,7 +61,7 @@ for msg in st.session_state.messages:
             if hasattr(msg, 'dataframe_json') and msg.dataframe_json:
                 try:
                     df = pd.read_json(StringIO(msg.dataframe_json), orient='split')
-                    st.dataframe(df) 
+                    st.dataframe(df, key=f"df_{i}") 
                 except Exception as e:
                     st.error(f"Impossible d'afficher le DataFrame : {e}")
 
@@ -69,7 +69,7 @@ for msg in st.session_state.messages:
             if hasattr(msg, 'plotly_json') and msg.plotly_json:
                 try:
                     fig = go.Figure(pio.from_json(msg.plotly_json))
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=f"df_{i}")
                 except Exception as e:
                     st.error(f"Impossible d'afficher le graphique : {e}")
 

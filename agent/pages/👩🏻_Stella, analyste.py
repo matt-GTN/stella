@@ -55,7 +55,7 @@ if "session_id" not in st.session_state:
 for msg in st.session_state.messages:
     if isinstance(msg, AIMessage):
         with st.chat_message("assistant", avatar=STELLA_AVATAR):
-            st.write(msg.content)
+            st.markdown(msg.content)
 
             # Logique pour le DataFrame 
             if hasattr(msg, 'dataframe_json') and msg.dataframe_json:

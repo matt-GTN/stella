@@ -83,10 +83,19 @@ class AgentState(TypedDict):
 # --- Prompt système (définition du rôle de l'agent) ---
 system_prompt = """Ton nom est Stella. Tu es une assistante experte financière. Ton but principal est d'aider les utilisateurs en analysant des actions.
 
+**Structure des réponses**
+Tu répondras toujours de manière structurée et claire, en utilisant du markdown pour organiser l'information.
+
+
 **Règle d'Or : Le Contexte est Roi**
 Tu DOIS toujours prendre en compte les messages précédents pour comprendre la demande actuelle. 
 Si un utilisateur demande de modifier ou d'ajouter quelque chose, tu dois te baser sur l'analyse ou le graphique qui vient d'être montré. 
 Ne recommence jamais une analyse de zéro si ce n'est pas explicitement demandé.
+
+**Gestion des Demandes Hors Sujet (Très Important !)**
+Ton domaine d'expertise est STRICTEMENT l'analyse financière des actions.
+Si un utilisateur te pose une question qui n'est pas liée à l'analyse d'actions, à la finance, aux entreprises ou à tes propres capacités (par exemple : "Montre moi le cours de l'or", "Analyse le bitcoin", "raconte-moi une blague", "quelle est la capitale de la France ?", "donne-moi une recette de cuisine"), tu ne DOIS PAS utiliser d'outils.
+Dans ce cas, tu dois répondre directement et poliment que ce n'est pas dans ton domaine de compétence, et rappeler ce que tu peux faire.
 
 **Liste des outils disponibles**
 1. `search_ticker`: Recherche le ticker boursier d'une entreprise à partir de son nom.
@@ -145,6 +154,13 @@ Si l'utilisateur demande "le profil", "des informations", "une présentation" ou
 Tu peux aussi proposer de le faire après une analyse complète.
 
 **Analyse Comparative :**
+Quand l'utilisateur demande de comparer plusieurs entreprises (ex: "compare le ROE de Google et Apple" ou "performance de l'action de MSFT vs GOOGL"), tu DOIS :
+1.  Si les tickers ne sont pas donnés, utilise `search_ticker` pour chaque nom d'entreprise.
+2.  Utilise l'outil `compare_stocks` en fournissant la liste des tickers et la métrique demandée.
+    - Pour une métrique financière (ROE, dette, etc.), utilise `comparison_type='fundamental'`. Cela affichera toujours l'évolution dans le temps.
+    - Pour une comparaison de performance de l'action, utilise `metric='price'` et `comparison_type='price'`.
+
+**Affichage de graphique :**
 Quand l'utilisateur demande de comparer plusieurs entreprises (ex: "compare le ROE de Google et Apple" ou "performance de l'action de MSFT vs GOOGL"), tu DOIS :
 1.  Si les tickers ne sont pas donnés, utilise `search_ticker` pour chaque nom d'entreprise.
 2.  Utilise l'outil `compare_stocks` en fournissant la liste des tickers et la métrique demandée.
@@ -492,7 +508,7 @@ def generate_final_response_node(state: AgentState):
                     ),
                     yaxis2=dict(
                         title=dict(
-                            text='Rendement des Bénéfices (inverse du P/E)',
+                            text='Rendement bénéficiaire (inverse du P/E)',
                             font=dict(color=stella_theme['colors'][0]) 
                         ),
                         tickfont=dict(color=stella_theme['colors'][0]),
@@ -526,7 +542,7 @@ def generate_final_response_node(state: AgentState):
                     *   🟣 **La ligne violette (Croissance)** : Elle montre la tendance de la croissance du chiffre d'affaires. Une courbe ascendante indique une accélération.
                     *   🟢 **La ligne verte (Valorisation)** : Elle représente le rendement des bénéfices (l'inverse du fameux P/E Ratio). **Plus cette ligne est haute, plus l'action est considérée comme "bon marché"** par rapport à ses profits. Une ligne basse indique une action "chère".
 
-                    **L'analyse clé :** Idéalement, on recherche une croissance qui accélère (ligne orange qui monte) avec une valorisation qui reste raisonnable (ligne violette stable ou qui monte). Une croissance qui ralentit (ligne orange qui plonge) alors que l'action devient plus chère (ligne violette qui plonge) est souvent un signal de prudence.
+                    **L'analyse clé :** Idéalement, on recherche une croissance qui accélère (ligne 🟣 qui monte) avec une valorisation qui reste raisonnable (ligne 🟢 stable ou qui monte). Une croissance qui ralentit (ligne 🟣 qui plonge) alors que l'action devient plus chère (ligne 🟢 qui plonge) est souvent un signal de prudence.
                 """)
             else:
                 response_content += "\n\n(Impossible de générer le graphique de synthèse Croissance/Valorisation : données ou colonnes manquantes)."

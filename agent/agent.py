@@ -828,20 +828,25 @@ def generate_trace_animation_frames(thread_id: str):
             print("--- VISUALIZER: Aucune exécution trouvée pour cet ID de thread.")
             return []
 
+        # Find the main thread run (root run)
         thread_run = next((r for r in all_runs if not r.parent_run_id), None)
         if not thread_run:
             print("--- VISUALIZER: Exécution principale du thread introuvable.")
             return []
 
+        # Get node-level runs, sorted by start time
         trace_nodes_runs = sorted(
             [r for r in all_runs if r.parent_run_id == thread_run.id],
             key=lambda r: r.start_time
         )
 
-        trace_node_names = [run.name for run in trace_nodes_runs]
-        full_trace_path = ["__start__"] + trace_node_names + ["__end__"]
+        # Build the full trace path, including start and end
+        # This list directly maps to the order of runs in trace_nodes_runs
+        # The index in trace_nodes_runs will be (index in full_trace_path - 1)
+        full_trace_path_names = [run.name for run in trace_nodes_runs]
+        full_trace_path = ["__start__"] + full_trace_path_names + ["__end__"]
 
-        if not trace_node_names:
+        if not trace_nodes_runs:
             print("--- VISUALIZER: Aucun noeud enfant (étape) trouvé dans la trace.")
             return []
 
@@ -850,10 +855,19 @@ def generate_trace_animation_frames(thread_id: str):
         graph_json = app.get_graph().to_json()
         
         frames = []
-        previous_node = full_trace_path[0]
-        initial_node_name = full_trace_path[0]
+        previous_node_in_trace = full_trace_path[0] # This tracks the previous node *in the path*, not graphviz node id
+        
+        # Create a mapping from node_id in graph_json to its original label for efficiency
+        node_labels_map = {}
+        for node in graph_json["nodes"]:
+            node_labels_map[node["id"]] = node["data"]["name"] if "data" in node and "name" in node["data"] else node["id"]
 
-        for i, node_name in enumerate(full_trace_path):
+
+        for i, current_node_name_in_trace in enumerate(full_trace_path):
+            # The node ID in Graphviz will be the same as the run.name for actual nodes
+            # For __start__ and __end__, they are special
+            node_id_to_highlight = current_node_name_in_trace
+
             # --- 2. CONSTRUCTION DU DOT STRING AVEC STYLE ---
             
             # Attributs globaux pour le graphe
@@ -869,16 +883,38 @@ def generate_trace_animation_frames(thread_id: str):
             ]
             
             # Ajout des noeuds
-            for node in graph_json["nodes"]:
-                node_id = node["id"]
-                label = node["data"]["name"] if "data" in node and "name" in node["data"] else node_id
-                
-                # Appliquer le style de surbrillance si c'est le noeud actif
-                if node_id == node_name:
+            for node_in_graph_def in graph_json["nodes"]: 
+                node_id_from_graph_def = node_in_graph_def["id"]
+                display_label = node_labels_map[node_id_from_graph_def] 
+
+                if node_id_from_graph_def == current_node_name_in_trace:
+                    # Appliquer le libellé personnalisé pour 'execute_tool' UNIQUEMENT s'il est le nœud mis en évidence
+                    if node_id_from_graph_def == "execute_tool":
+                        # Le Run object correspondant est trace_nodes_runs[i-1] car full_trace_path inclut __start__ au début.
+                        # On s'assure que l'index est valide pour trace_nodes_runs
+                        if i > 0 and i <= len(trace_nodes_runs): 
+                            specific_run = trace_nodes_runs[i-1]
+                            if specific_run.name == "execute_tool": # Double vérification que le nom correspond bien
+                                if specific_run.inputs and 'messages' in specific_run.inputs:
+                                    # Parcourir les messages d'entrée en sens inverse pour trouver le dernier AIMessage avec tool_calls
+                                    for msg_dict in reversed(specific_run.inputs['messages']):
+                                        # Les messages dans LangSmith Run.inputs sont des dictionnaires
+                                        if isinstance(msg_dict, dict) and msg_dict.get('type') == 'ai' and msg_dict.get('tool_calls'):
+                                            first_tool_call = msg_dict['tool_calls'][0] # On prend le premier tool_call (souvent le seul)
+                                            tool_name = first_tool_call['name']
+                                            display_label = f"execute_tool : {tool_name}" # Surcharge le libellé
+                                            break
+                                    # else: Un avertissement peut être ajouté ici si tool_calls non trouvé, mais c'est rare
+                            # else: avertissement si specific_run.name n'est pas "execute_tool", mais indexation incorrecte
+                        # else: avertissement si l'index i ne correspond pas à une exécution de nœud réelle
+                        else:
+                             print(f"Warning: Index de trace ({i}) hors limites ou nœud spécial pour {node_id_from_graph_def}")
+
+
                     highlight_attrs = ' '.join([f'{k}="{v}"' for k, v in style_config["highlight"].items() if 'edge' not in k])
-                    dot_lines.append(f'  "{node_id}" [label="{label}", {highlight_attrs}];')
+                    dot_lines.append(f'  "{node_id_from_graph_def}" [label="{display_label}", {highlight_attrs}];')
                 else:
-                    dot_lines.append(f'  "{node_id}" [label="{label}"];')
+                    dot_lines.append(f'  "{node_id_from_graph_def}" [label="{display_label}"];') # Utilise le libellé original pour les nœuds non surlignés
             
             # Ajout des arêtes
             for edge in graph_json["edges"]:
@@ -886,7 +922,7 @@ def generate_trace_animation_frames(thread_id: str):
                 target = edge["target"]
                 
                 # Appliquer le style de surbrillance si c'est l'arête active
-                if source == previous_node and target == node_name:
+                if source == previous_node_in_trace and target == current_node_name_in_trace:
                     dot_lines.append(f'  "{source}" -> "{target}" [color="{style_config["highlight"]["edge_color"]}", penwidth=2.5];')
                 else:
                     dot_lines.append(f'  "{source}" -> "{target}";')
@@ -897,14 +933,14 @@ def generate_trace_animation_frames(thread_id: str):
             g = graphviz.Source(modified_dot)
             png_bytes = g.pipe(format='png')
 
-            step_description = f"Step {i+1}: Transition vers le noeud '{node_name}'"
+            step_description = f"Step {i+1}: Transition vers le noeud '{current_node_name_in_trace}'"
             if i == 0:
                 step_description = "Step 1: Début de l'exécution"
             elif i == len(full_trace_path) - 1:
                 step_description = f"Step {i+1}: Fin de l'exécution"
             frames.append((step_description, png_bytes))
 
-            previous_node = node_name
+            previous_node_in_trace = current_node_name_in_trace
 
         return frames
 

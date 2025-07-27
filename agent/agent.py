@@ -904,9 +904,6 @@ def generate_trace_animation_frames(thread_id: str):
                                             tool_name = first_tool_call['name']
                                             display_label = f"execute_tool : {tool_name}" # Surcharge le libellé
                                             break
-                                    # else: Un avertissement peut être ajouté ici si tool_calls non trouvé, mais c'est rare
-                            # else: avertissement si specific_run.name n'est pas "execute_tool", mais indexation incorrecte
-                        # else: avertissement si l'index i ne correspond pas à une exécution de nœud réelle
                         else:
                              print(f"Warning: Index de trace ({i}) hors limites ou nœud spécial pour {node_id_from_graph_def}")
 

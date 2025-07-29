@@ -893,7 +893,7 @@ def generate_trace_animation_frames(thread_id: str):
                         # Le Run object correspondant est trace_nodes_runs[i-1] car full_trace_path inclut __start__ au début.
                         # On s'assure que l'index est valide pour trace_nodes_runs
                         if i > 0 and i <= len(trace_nodes_runs): 
-                            specific_run = trace_nodes_runs[i-1]
+                            specific_run = trace_nodes_runs[i-1] # Le Run object de Langsmith pour ce noeud 'execute_tool'
                             if specific_run.name == "execute_tool": # Double vérification que le nom correspond bien
                                 if specific_run.inputs and 'messages' in specific_run.inputs:
                                     # Parcourir les messages d'entrée en sens inverse pour trouver le dernier AIMessage avec tool_calls
@@ -902,8 +902,26 @@ def generate_trace_animation_frames(thread_id: str):
                                         if isinstance(msg_dict, dict) and msg_dict.get('type') == 'ai' and msg_dict.get('tool_calls'):
                                             first_tool_call = msg_dict['tool_calls'][0] # On prend le premier tool_call (souvent le seul)
                                             tool_name = first_tool_call['name']
-                                            display_label = f"execute_tool : {tool_name}" # Surcharge le libellé
-                                            break
+                                            tool_args = first_tool_call['args']
+                                            
+                                            args_str_parts = []
+                                            for k, v in tool_args.items():
+                                                if isinstance(v, str):
+                                                    args_str_parts.append(f"{k}='{v}'")
+                                                elif isinstance(v, list):
+                                                    # Gère les listes comme [item1, item2]
+                                                    formatted_list = ", ".join([f"'{item}'" if isinstance(item, str) else str(item) for item in v])
+                                                    args_str_parts.append(f"{k}=[{formatted_list}]")
+                                                else:
+                                                    # Gère les nombres et autres types
+                                                    args_str_parts.append(f"{k}={v}")
+                                            
+                                            args_display = ", ".join(args_str_parts)
+                                            if args_display: # Ajoute les parenthèses seulement s'il y a des arguments
+                                                display_label = f"execute_tool : {tool_name} ({args_display})"
+                                            else:
+                                                display_label = f"execute_tool : {tool_name}"
+                                            break # On a trouvé le bon message, on peut sortir de cette boucle interne
                         else:
                              print(f"Warning: Index de trace ({i}) hors limites ou nœud spécial pour {node_id_from_graph_def}")
 

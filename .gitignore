@@ -10,6 +10,7 @@ __pycache__/
 *$py.class
 
 # Fichiers d'envrionnement virtuel Python
+.venv/
 venv/
 stella/
 notebooks/Mathis/.DS_Store

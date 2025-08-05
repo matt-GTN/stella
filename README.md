@@ -1,7 +1,7 @@
 Projet OPA - Agent Analyste financier
 ==============================
 
-Ce repo est un fork du projet de fin d'étude réalisé dans le cadre du cursus Data Scientist chez DataScientest et l'Ecole des Mines Paris par Mathis GENTHON
+Ce repo est un projet de fin d'étude réalisé dans le cadre du cursus Data Scientist chez DataScientest et l'Ecole des Mines Paris par Jerry PETILAIRE, Gilles LENY, Samuel LEE KWET SUN et Mathis GENTHON
 
 Organisation du projet
 ------------
@@ -9,15 +9,14 @@ Organisation du projet
     ├── LICENSE
     ├── README.md                    <- Le README décrivant le projet
     ├── .env.example                 <- Le fichier décrivant comment remplir les clefs APIs
+    ├── Dockerfile                   <- Le fichier de création de l'image Docker
+    ├── .dockerignore                <- Permet d'ignorer les notebooks et alléger l'image
     │
     ├── notebooks                    <- Tous les notebooks et données utilsés pendant la phase de recherche
     │   ├── csv                      <- Les données utilisées pendant le projet.
     │   └── Mathis                   <- Le travail de recherche effectué par Mathis GENTHON, convention 'OPA#X' pour l'ordre de recherche
     │
     ├── models                       <- Les modèles finaux entraînés
-    │
-    ├── reports                      <- Les rapports produits pour la présentation du projet
-    │   └── figures                  <- Les graphiques générés lors de la phase d'exploration des données
     │
     ├── agent                        <- Le code source de l'agent analyste 
     │   ├── app.py                   <- Le fichier streamlit utilisé pour lancer l'agent 
@@ -51,17 +50,11 @@ Liste des outils et capacités de l'agent
 Graph de l'agent
 ------------
 ![Graph de l'agent](agent_workflow.png)
-  
 
-Mise en place de l'environnement 
+Installation de Docker 
 ------------
-  
-```bash
-python3 -m venv stella
-source stella/bin/activate
-pip install -r requirements.txt
-playwright install
-```
+
+https://www.docker.com
   
 
 Obtention des clefs API
@@ -85,6 +78,7 @@ NewsAPI fournit les news liés aux entreprises :
 https://newsapi.org
   
 **Obtenir une clef API LangSmith**
+  
 LangSmith permet de tracer l'agent et visualiser ce qu'il se passe dans l'application : 
 https://smith.langchain.com/
   
@@ -96,16 +90,18 @@ Ajout des variables d'envrionnement
 Lancement de l'agent
 ------------
   
-**Activer l'envrionnement pour la session en cours**
+**Création de l'image Docker**
 
-### Sur Linux / Mac
-```source stella/bin/activate```
-
-### Sur Windows
-```stella\Scripts\activate```
-
-**Lancer l'application Streamlit**
+```bash
+docker build -t stella_image .    
+```
   
-```streamlit run agent/app.py```
+**Lancer le conteneur de l'application Streamlit**
+  
+```bash
+docker run --name stella -p 8501:8501 -d stella_image
+```
+  
+**Accéder à l'application Streamlit**
 
-
+http://localhost:8501

@@ -145,6 +145,18 @@ Quand l'utilisateur demande de comparer plusieurs entreprises (ex: "compare le R
     *   Pour une comparaison **fondamentale** (américaine uniquement) : `comparison_type='fundamental'`, `metric='roe'` (par exemple).
     *   Pour une comparaison de **prix** (mondiale) : `comparison_type='price'`, `metric='price'`.
 
+**AFFICHAGE DE DONNEES** 
+Si l'utilisateur te demande d'afficher des données tu dois toujours suivre cette séquence : 
+- Vérifier si l'entreprise est américaine ou internationale. Répondre en rappelant tes limitesn si l'entreprise n'est pas américaine. 
+- Si des données sont disponibles dans le contexte, utiliser l'outil `display_raw_data` ou `display_processed_data` selon le type de données demandées.
+- Si des données ne sont pas disponibles, tu dois d'abord appeler `fetch_data` pour récupérer les données, puis utiliser l'outil approprié pour les afficher.
+Tu dois bien comprendre que tu ne dois jamais afficher les données brutes ou traitées sans utiliser ces outils, car ils formatent correctement les données pour l'affichage.
+Exemples : 
+- "Affiche les données brutes de l'entreprise" -> `display_raw_data`
+- "Affiche les données traitées" -> `display_processed_data`
+- "Montre-moi les données" -> `display_raw_data` (par défaut, car c'est le plus courant)
+- "Tableau des données" -> `display_raw_data` (par défaut, car c'est le plus courant)
+
 **Gestion des Questions de Suivi (Très Important !)**
 
 *   **Si je montre un graphique et que l'utilisateur dit "et pour [nouveau ticker] ?"**: Tu dois comprendre qu'il faut ajouter ce ticker au graphique existant. Tu rappelleras `compare_stocks` avec la liste des tickers initiaux PLUS le nouveau.
@@ -768,7 +780,7 @@ workflow.add_edge("prepare_chart_display", "cleanup_state")
 workflow.add_edge("prepare_news_display", "cleanup_state")
 workflow.add_edge("handle_error", "cleanup_state")
 
-# Après le nettoyage, le cycle est vraiment terminé.
+# Après le nettoyage, le cycle est terminé.
 workflow.add_edge("cleanup_state", END)
 
 app = workflow.compile(checkpointer=memory)
@@ -792,7 +804,6 @@ def generate_trace_animation_frames(thread_id: str):
     """
     print(f"--- VISUALIZER: Génération de l'animation pour : {thread_id} ---")
     try:
-        # --- 1. DÉFINITION DU THÈME MODERNE ---
         style_config = {
             "graph": {
                 "fontname": "Arial",
@@ -828,21 +839,15 @@ def generate_trace_animation_frames(thread_id: str):
             print("--- VISUALIZER: Aucune exécution trouvée pour cet ID de thread.")
             return []
 
-        # Find the main thread run (root run)
         thread_run = next((r for r in all_runs if not r.parent_run_id), None)
         if not thread_run:
             print("--- VISUALIZER: Exécution principale du thread introuvable.")
             return []
 
-        # Get node-level runs, sorted by start time
         trace_nodes_runs = sorted(
             [r for r in all_runs if r.parent_run_id == thread_run.id],
             key=lambda r: r.start_time
         )
-
-        # Build the full trace path, including start and end
-        # This list directly maps to the order of runs in trace_nodes_runs
-        # The index in trace_nodes_runs will be (index in full_trace_path - 1)
         full_trace_path_names = [run.name for run in trace_nodes_runs]
         full_trace_path = ["__start__"] + full_trace_path_names + ["__end__"]
 
@@ -855,21 +860,14 @@ def generate_trace_animation_frames(thread_id: str):
         graph_json = app.get_graph().to_json()
         
         frames = []
-        previous_node_in_trace = full_trace_path[0] # This tracks the previous node *in the path*, not graphviz node id
+        previous_node_in_trace = full_trace_path[0]
         
-        # Create a mapping from node_id in graph_json to its original label for efficiency
         node_labels_map = {}
         for node in graph_json["nodes"]:
             node_labels_map[node["id"]] = node["data"]["name"] if "data" in node and "name" in node["data"] else node["id"]
 
 
         for i, current_node_name_in_trace in enumerate(full_trace_path):
-            # The node ID in Graphviz will be the same as the run.name for actual nodes
-            # For __start__ and __end__, they are special
-            node_id_to_highlight = current_node_name_in_trace
-
-            # --- 2. CONSTRUCTION DU DOT STRING AVEC STYLE ---
-            
             # Attributs globaux pour le graphe
             graph_attrs = ' '.join([f'{k}="{v}"' for k, v in style_config["graph"].items()])
             node_attrs = ' '.join([f'{k}="{v}"' for k, v in style_config["nodes"].items()])

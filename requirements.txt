@@ -10,6 +10,7 @@ scikit-learn==1.6.1
 numpy==2.2.5
 yfinance==0.2.64
 
+
 # --- Communication API ---
 requests==2.32.4
 
@@ -23,6 +24,8 @@ langchain-core==0.3.68
 plotly==6.0.1
 graphviz==0.21
 playwright==1.52.0
+shap==0.48.0
+matplotlib==3.10.3
 
 # --- Notebooks ---
 nbformat==5.10.4

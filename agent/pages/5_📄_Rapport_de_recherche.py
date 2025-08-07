@@ -2,7 +2,6 @@
 
 import streamlit as st
 import streamlit.components.v1 as components
-import webbrowser
 
 st.set_page_config(layout="wide", page_title="Rapport de recherche")
 
@@ -16,10 +15,9 @@ st.markdown("""
 
 
 pdf_url = "https://drive.usercontent.google.com/download?id=1SJ4FudYBzWSXwr6a0-q62vgNo56FPd9I&export=download&authuser=0"
-
-
+pdf_url_test ="https://drive.usercontent.google.com/download?id=1meEY_uOYKiTlwmWIzZg4m6ExLA9-5xWm&export=download&authuser=0&confirm=t"
 pdf_embed_code = f"""
-<iframe src="https://docs.google.com/viewer?url={pdf_url}&embedded=true" 
+<iframe src="https://docs.google.com/viewer?url={pdf_url_test}&embedded=true" 
         style="border: 0; width: 100%; height: 1200px;" 
         width="100%" 
         height="1200px" 

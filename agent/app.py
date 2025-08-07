@@ -1,6 +1,9 @@
 # agent/app.py (Le nouveau fichier d'accueil)
 
 import streamlit as st
+from src.pdf_research import initialize_research_handler
+
+
 
 # Configure la page pour qu'elle ait un titre, mais elle ne sera visible qu'une fraction de seconde.
 st.set_page_config(
@@ -12,12 +15,12 @@ st.set_page_config(
 st.title("🚀 Lancement de l'assistant...")
 st.write("Veuillez patienter, redirection en cours vers l'accueil de l'application....")
 
-# Le chemin est relatif au dossier principal.
-if "session_id" in st.session_state:
-    st.switch_page("pages/1_🏠_Accueil.py")
+# Initialize the research handler when the app starts
+if 'research_initialized' not in st.session_state:
+    with st.spinner('Chargement du document de recherche...'):
+        initialize_research_handler()
+        st.session_state.research_initialized = True
+        st.switch_page("pages/1_🏠_Accueil.py")
 else:
-    # Si c'est la toute première exécution, on donne une petite pause pour que
-    # st.session_state puisse s'initialiser sur la page de destination.
-    import time
-    time.sleep(1)
+    st.session_state.research_initialized = True
     st.switch_page("pages/1_🏠_Accueil.py")

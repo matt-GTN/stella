@@ -17,6 +17,7 @@ from src.fetch_profile import fetch_company_profile as _fetch_profile_logic
 from src.fetch_price import fetch_price_history as _fetch_price_history_logic
 from src.compare_fundamentals import compare_fundamental_metrics as _compare_fundamental_metrics_logic
 from src.compare_prices import compare_price_histories as _compare_price_histories_logic
+from src.pdf_research import query_research_document as _query_research_document_logic
 from src.chart_theme import stella_theme
 
 
@@ -177,6 +178,22 @@ def compare_stocks(tickers: List[str], metric: str, comparison_type: str = 'fund
     """
     return "[La comparaison est prête à être exécutée par le système.]"
 
+@tool
+def query_research(query: str) -> str:
+    """
+    Recherche dans le document de recherche interne de l'équipe pour obtenir des informations
+    sur les méthodologies, analyses, conclusions de recherche, ta stack technique, etc.
+    Utilise cet outil quand l'utilisateur demande des informations sur:
+    - Les recherches de l'équipe
+    - Les méthodologies utilisées
+    - Les conclusions d'études
+    - Des explications théoriques ou techniques
+    
+    Args:
+        query (str): La question ou le sujet à rechercher dans le document de recherche
+    """
+    return "[La recherche dans le document est prête à être exécutée.]"
+
 # --- La liste complète des outils disponibles pour l'agent ---
 available_tools = [
     search_ticker,
@@ -189,5 +206,6 @@ available_tools = [
     display_processed_data,
     create_dynamic_chart,
     display_price_chart,
-    compare_stocks
+    compare_stocks,
+    query_research
 ]

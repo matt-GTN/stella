@@ -1,5 +1,6 @@
 # agent/src/pdf_research.py
 import os
+from pathlib import Path
 import json
 from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader
@@ -135,9 +136,8 @@ class ResearchPDFHandler:
         except:
             return {"error": "Impossible de récupérer les statistiques du document"}
 
-
-# Gestionnaire global pour le document de recherche
-RESEARCH_PDF_PATH = "reports/Rapport de projet - OPA - NOV24-CDS.pdf" # Mis à jour pour un nom général
+BASE_DIR = Path(__file__).resolve().parents[2]  # remonte de /app/agent/src à /app
+RESEARCH_PDF_PATH = BASE_DIR / "reports" / "Rapport de projet - OPA - NOV24-CDS.pdf"
 research_handler = None
 
 def initialize_research_handler():

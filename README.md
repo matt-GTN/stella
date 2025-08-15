@@ -10,20 +10,28 @@ Organisation du projet
     ├── README.md                    <- Le README décrivant le projet
     ├── .env.example                 <- Le fichier décrivant comment remplir les clefs APIs
     ├── Dockerfile                   <- Le fichier de création de l'image Docker
-    ├── .dockerignore                <- Permet d'ignorer les notebooks et alléger l'image
+    ├── .dockerignore                <- Permet d'ignorer les notebooks et autres afin d'alléger l'image
+    ├── .gitignore                   <- Permet d'ignorer les fichiers inutiles au repo
+    ├── requirements.txt             <- Le fichier txt permettant d'installer les dépendances
     │
     ├── notebooks                    <- Tous les notebooks et données utilsés pendant la phase de recherche
     │   ├── csv                      <- Les données utilisées pendant le projet.
+    │   ├── Gilles                   <- Le travail de recherche effectué par Gilles LENY
+    │   ├── Jerry                    <- Le travail de recherche effectué par Jerry PETILAIRE
+    │   ├── Samuel                   <- Le travail de recherche effectué par Samuel LEE KWET SUN
     │   └── Mathis                   <- Le travail de recherche effectué par Mathis GENTHON, convention 'OPA#X' pour l'ordre de recherche
     │
     ├── models                       <- Les modèles finaux entraînés
+    │
+    ├── reports                      <- Les rapports produits pour la présentation du projet
+    │   ├── rapport.pdf              <- Le rapport de recherche détaillant l'approche
+    │   └── figures                  <- Les graphiques générés lors de la phase d'exploration des données
     │
     ├── agent                        <- Le code source de l'agent analyste 
     │   ├── app.py                   <- Le fichier streamlit utilisé pour lancer l'agent 
     │   ├── agent.py                 <- La logique agentique dévéloppée dans le framework LangGraph
     │   ├── tools.py                 <- La fichier référençant les outils disponibles pour l'agent 
     │   ├── agent_workflow.png       <- Visualisation des noeuds et relations du LangGraph de l'agent
-    │   ├── requirements.txt         <- Le fichier txt permettant d'installer les dépendances
     │   │
     │   ├── src                      <- Le dossier contenant les scripts des outils
     │   ├── pages                    <- Le dossier contenant les différentes pages de l'application 
@@ -46,6 +54,7 @@ Liste des outils et capacités de l'agent
 9. `get_stock_news`: Récupère les dernières actualités pour un ticker donné.
 10. `get_company_profile`: Récupère le profil d'une entreprise, incluant des informations clés comme le nom, le secteur, l'industrie, le CEO, etc.
 11. `compare_stocks`: Compare plusieurs entreprises sur une métrique financière ou sur leur prix.
+12. `query_research`: Recherche dans le rapport de projet via un système RAG pour trouver, expliquer ou résumer des informations liées au contexte et à la recherche du projet.
   
 Graph de l'agent
 ------------

@@ -5,8 +5,8 @@ st.set_page_config(page_title="Accueil", page_icon="🏠", layout="wide")
 st.title("🏠 Accueil – Assistant Financier IA")
 
 st.info("""
-Bienvenue dans l'interface de présentation de notre projet : **Stella**, votre assistante IA dédiée à l'analyse d'actions.
-Voici un aperçu des différentes pages de l'application :
+Bienvenue dans l'interface de présentation de notre projet : **Stella**, votre assistante IA dédiée à l'analyse d'actions.  
+**Voici un aperçu des différentes pages de l'application :**
 """)
 
 with st.container(border=True):

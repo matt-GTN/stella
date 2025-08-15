@@ -1,7 +1,7 @@
 Projet OPA - Agent Analyste financier
 ==============================
 
-Ce repo est un projet de fin d'étude réalisé dans le cadre du cursus Data Scientist chez DataScientest et l'Ecole des Mines Paris par Jerry PETILAIRE, Gilles LENY, Samuel LEE KWET SUN et Mathis GENTHON
+Ce repo est un projet de fin d'étude réalisé dans le cadre du cursus Data Scientist chez DataScientest et Mines Paris - PSL par Mathis GENTHON
 
 Organisation du projet
 ------------

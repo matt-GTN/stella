@@ -182,7 +182,7 @@ if prompt := st.chat_input("Qu'est ce que je peux faire pour toi aujourd'hui ? �
                     
                     elif tool_name == 'query_research':
                         query = tool_args.get('query', 'la question posée')
-                        thinking_placeholder.write(f"📚 Je consulte notre document de recherche interne pour répondre à ta question : **'{query}'**.")
+                        thinking_placeholder.write(f"📚 Je consulte le rapport de recherche avec : **'{query}'** en tête !. (Cet outil prend plus de temps que les autres)")
                     
                     elif tool_name == 'display_raw_data':
                         thinking_placeholder.write("📋 Je prépare le tableau des données brutes récupérées pour que tu puisses les consulter.")

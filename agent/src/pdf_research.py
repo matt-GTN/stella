@@ -1,3 +1,4 @@
+# agent/src/pdf_research.py
 import os
 import json
 from typing import List, Dict, Any
@@ -8,7 +9,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 
 class ResearchPDFHandler:
-    """Handles PDF research document processing and querying for Stella"""
+    """Gère le traitement et l'interrogation de documents de recherche PDF - optimisé pour le contenu financier/science des données"""
     
     def __init__(self, pdf_path: str, persist_directory: str = "./chroma_research_db"):
         self.pdf_path = pdf_path
@@ -17,71 +18,88 @@ class ResearchPDFHandler:
         self.setup_vectorstore()
     
     def setup_vectorstore(self):
-        """Initialize or load the vector store with the research PDF"""
+        """Initialise ou charge le magasin de vecteurs avec le document de recherche PDF"""
         try:
             if os.path.exists(self.persist_directory):
-                # Load existing vectorstore
+                # Charge le magasin de vecteurs existant
                 embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2",
-                    model_kwargs={'device': 'cpu'}
+                    model_name="intfloat/multilingual-e5-small",
+                    model_kwargs={'device': 'cpu'},
+                    # Facultatif : Ajoutez des configurations spécifiques au modèle
+                    encode_kwargs={'normalize_embeddings': True}
                 )
                 self.vectorstore = Chroma(
                     persist_directory=self.persist_directory,
                     embedding_function=embeddings
                 )
+                print(f"Magasin de vecteurs existant chargé avec {self.vectorstore._collection.count()} documents")
             else:
-                # Create new vectorstore
+                # Crée un nouveau magasin de vecteurs
                 self._create_new_vectorstore()
         except Exception as e:
-            raise Exception(f"Error setting up vector store: {e}")
+            raise Exception(f"Erreur lors de la configuration du magasin de vecteurs : {e}")
     
     def _create_new_vectorstore(self):
-        """Create a new vector store from the PDF"""
+        """Crée un nouveau magasin de vecteurs à partir du PDF"""
         try:
             if not os.path.exists(self.pdf_path):
-                raise FileNotFoundError(f"PDF not found at: {self.pdf_path}")
+                raise FileNotFoundError(f"PDF introuvable à : {self.pdf_path}")
 
+            print("Chargement du document PDF...")
             loader = PyPDFLoader(self.pdf_path)
             documents = loader.load()
 
             if not documents:
-                raise ValueError("PDF loaded but contains no pages")
+                raise ValueError("PDF chargé mais ne contient aucune page")
 
+            print(f"Chargé {len(documents)} pages du PDF")
+
+            # Séparateur de texte optimisé pour le contenu financier/technique
             text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                separators=["\n\n", "\n", ". ", " "],
+                chunk_size=1200,
+                chunk_overlap=300,
+                separators=["\n\n", "\n", ". ", "• ", "- ", " "],
                 length_function=len,
             )
             chunks = text_splitter.split_documents(documents)
 
+            print(f"Divisé en {len(chunks)} morceaux")
+
+            # Métadonnées améliorées pour le document financier
             for i, chunk in enumerate(chunks):
                 chunk.metadata.update({
                     "chunk_id": i,
-                    "source": "research_document",
+                    "source": "rapport_de_recherche_financière",
                     "page_number": chunk.metadata.get("page", 0),
-                    "total_chunks": len(chunks)
+                    "total_chunks": len(chunks),
+                    "language": "multilingual", # Mis à jour pour être plus général
+                    "domain": "financial_data_science"
                 })
 
+            print("Création des embeddings avec le modèle multilingue E5...")
             embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={'device': 'cpu'}
+                model_name="intfloat/multilingual-e5-small",
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': True}
             )
 
+            print("Construction de la base de données vectorielle...")
             self.vectorstore = Chroma.from_documents(
                 documents=chunks,
                 embedding=embeddings,
                 persist_directory=self.persist_directory
             )
+            
+            print(f"Base de données vectorielle créée avec succès avec {len(chunks)} morceaux")
 
         except Exception as e:
-            raise Exception(f"Error creating vector store from PDF: {e}")
+            raise Exception(f"Erreur lors de la création du magasin de vecteurs à partir du PDF : {e}")
     
     def search_research(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
-        """Search the research document for relevant information"""
+        """Recherche des informations pertinentes dans le document de recherche"""
         try:
             if not self.vectorstore:
-                raise ValueError("Vector store not initialized")
+                raise ValueError("Magasin de vecteurs non initialisé")
 
             relevant_docs = self.vectorstore.similarity_search_with_score(query, k=k)
 
@@ -91,63 +109,98 @@ class ResearchPDFHandler:
                     "content": doc.page_content,
                     "metadata": doc.metadata,
                     "relevance_score": float(score),
-                    "page": doc.metadata.get("page", "Unknown")
+                    "page": doc.metadata.get("page", "Inconnu"),
+                    "chunk_id": doc.metadata.get("chunk_id", 0)
                 })
 
             return results
 
         except Exception as e:
-            raise Exception(f"Error searching research: {e}")
+            raise Exception(f"Erreur lors de la recherche dans le document de recherche : {e}")
+    
+    def get_document_stats(self) -> Dict[str, Any]:
+        """Obtient des statistiques sur le document chargé"""
+        if not self.vectorstore:
+            return {"error": "Magasin de vecteurs non initialisé"}
+        
+        try:
+            total_chunks = self.vectorstore._collection.count()
+            return {
+                "total_chunks": total_chunks,
+                "pdf_path": self.pdf_path,
+                "language": "multilingual",
+                "domain": "Financial Data Science",
+                "model": "intfloat/multilingual-e5-small"
+            }
+        except:
+            return {"error": "Impossible de récupérer les statistiques du document"}
 
 
-# Global handler
-RESEARCH_PDF_PATH = "reports/report.pdf"
+# Gestionnaire global pour le document de recherche
+RESEARCH_PDF_PATH = "reports/Rapport de projet - OPA - NOV24-CDS.pdf" # Mis à jour pour un nom général
 research_handler = None
 
 def initialize_research_handler():
-    """Initialize the research handler - call this when the app starts"""
+    """Initialise le gestionnaire de recherche - à appeler au démarrage de l'application"""
     global research_handler
     try:
         if os.path.exists(RESEARCH_PDF_PATH):
             research_handler = ResearchPDFHandler(RESEARCH_PDF_PATH)
+            print("Gestionnaire de recherche initialisé avec succès")
         else:
-            raise FileNotFoundError(f"Research PDF not found at path: {RESEARCH_PDF_PATH}")
+            raise FileNotFoundError(f"PDF de recherche introuvable à : {RESEARCH_PDF_PATH}")
     except Exception as e:
-        raise Exception(f"Failed to initialize research handler: {e}")
+        raise Exception(f"Échec de l'initialisation du gestionnaire de recherche : {e}")
 
 def query_research_document(query: str, max_results: int = 5) -> str:
     """
-    Query the research document and return formatted results
-    This function will be called by the LangGraph tool
+    Interroge le document de recherche et renvoie les résultats formatés
+    Amélioré pour le contenu de la science des données financières
     """
     global research_handler
 
     if not research_handler:
-        return "Research document not available. Please ensure the PDF is properly loaded."
+        return "Document de recherche non disponible. Veuillez vous assurer que le PDF est correctement chargé."
 
     try:
         results = research_handler.search_research(query, k=max_results)
 
         if not results:
-            return f"No relevant information found in the research document for: '{query}'"
+            return f"Aucune information pertinente trouvée dans le document de recherche pour : '{query}'"
 
         response_parts = [
-            f"Based on our research document, here's what I found about '{query}':\n"
+            f"D'après notre rapport de recherche en analyse financière, voici ce que j'ai trouvé concernant '{query}' :\n"
         ]
 
         for i, result in enumerate(results[:3], 1):
-            page_info = f"(Page {result['page']})" if result['page'] != "Unknown" else ""
+            page_info = f"(Page {result['page']})" if result['page'] != "Inconnu" else ""
+            relevance = f"(Score : {result['relevance_score']:.3f})" if result['relevance_score'] < 1.0 else ""
+            
             response_parts.append(
-                f"**{i}. Research Finding {page_info}:**\n"
+                f"**{i}. Résultat de recherche {page_info} {relevance} :**\n"
                 f"{result['content']}\n"
             )
 
         response_parts.append(
-            f"\n*This information comes from our internal research document "
-            f"(showing {min(3, len(results))} most relevant findings).*"
+            f"\n*Ces informations proviennent de notre rapport interne sur l'analyse fondamentale financière "
+            f"par approche Data Science (affichage des {min(3, len(results))} résultats les plus pertinents).*"
         )
 
         return "\n".join(response_parts)
 
     except Exception as e:
-        return f"Error accessing research document: {str(e)}"
+        return f"Erreur lors de l'accès au document de recherche : {str(e)}"
+
+# Fonction d'assistance supplémentaire pour les termes financiers
+def search_financial_concepts(concept: str) -> str:
+    """Fonction d'assistance pour rechercher des concepts financiers/science des données spécifiques"""
+    financial_queries = {
+        "ratios financiers": "ratios financiers analyse fondamentale",
+        "modèles prédictifs": "modèles prédictifs machine learning finance",
+        "analyse technique": "analyse technique indicateurs financiers",
+        "données financières": "données financières sources preprocessing",
+        "performance": "performance évaluation modèles financiers"
+    }
+    
+    query = financial_queries.get(concept.lower(), concept)
+    return query_research_document(query, max_results=4)

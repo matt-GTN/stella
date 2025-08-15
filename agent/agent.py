@@ -103,7 +103,7 @@ Tu dois impérativement comprendre et respecter ces deux règles :
 2.  **Analyse du Cours de Bourse (prix de l'action) :** Cette analyse est **DISPONIBLE POUR LES MARCHÉS MONDIAUX** (Europe, Asie, Amériques). Tu peux afficher et comparer les graphiques de prix pour n'importe quelle action, à condition d'avoir le bon ticker (ex: `AIR.PA` pour Airbus, `005930.KS` pour Samsung).
 
 **Liste des outils disponibles**
-1.  `search_ticker`: Recherche le ticker boursier d'une entreprise à partir de son nom.
+1.  `search_ticker`: Recherche le ticker boursier d'une entreprise à partir de son nom. A utiliser uniquement si tu n'es pas totalement sûre du ticker à choisir.
 2.  `fetch_data`: Récupère les données financières fondamentales pour un ticker. **RAPPEL : Ne fonctionne que pour les actions américaines.**
 3.  `preprocess_data`: Prépare et nettoie les données financières. **RAPPEL : Ne fonctionne que sur les données américaines.**
 4.  `analyze_risks`: Prédit la performance d'une action. **RAPPEL : Ne fonctionne que sur les données américaines.**
@@ -121,7 +121,7 @@ Tu expliqueras simplement ton rôle et tes fonctionnalités en donnant des exemp
 
 **Séquence d'analyse complète (Actions Américaines Uniquement)**
 Quand un utilisateur te demande une analyse complète, tu DOIS suivre cette séquence d'outils :
-1.  `search_ticker` si le nom de l'entreprise est donné plutôt que le ticker.
+1.  `search_ticker` si le nom de l'entreprise est donné plutôt que le ticker, et que tu n'es pas sûre du ticker.
 2.  `fetch_data` avec le ticker demandé.
 3.  `preprocess_data` pour nettoyer les données.
 4.  `analyze_risks` pour obtenir un verdict.
@@ -184,6 +184,7 @@ Tu dois toujours répondre en français et tutoyer ton interlocuteur.
 Fais TOUJOURS référence à **Stella comme toi même**.
 Fais attention au formatage de tes réponses, à toujours bien placer les balises markdown, et à toujours les fermer.
 """
+
 # --- Définition des noeuds du Graph ---
 
 # Noeud 1 : agent_node, point d'entrée et appel du LLM 
@@ -191,7 +192,6 @@ def agent_node(state: AgentState):
     """Le 'cerveau' de l'agent. Décide du prochain outil à appeler."""
     print("\n--- AGENT: Décision de la prochaine étape... ---")
 
-    # On prépare une liste de messages pour cet appel spécifique
     # On commence par le prompt système pour donner le rôle
     current_messages = [SystemMessage(content=system_prompt)]
     
@@ -836,6 +836,7 @@ def generate_trace_animation_frames(thread_id: str):
                 "fillcolor": "#1C202D", # Couleur de fond des noeuds (thème sombre)
                 "color": "#FAFAFA", # Couleur de la bordure
                 "fontcolor": "#FAFAFA", # Couleur du texte
+                "fontsize": "12", # Taille de police
             },
             "edges": {
                 "color": "#6c757d", # Couleur gris doux pour les flèches
@@ -844,6 +845,7 @@ def generate_trace_animation_frames(thread_id: str):
             "highlight": {
                 "fillcolor": "#33FFBD", # Couleur orange pour le noeud actif (de chart_theme.py)
                 "color": "#33FFBD", # Bordure blanche pour le noeud actif
+                "fontcolor": "#000000", # Couleur noire pour le texte du noeud actif
                 "edge_color": "#33FFBD", # Couleur orange pour la flèche active
             }
         }
@@ -942,11 +944,12 @@ def generate_trace_animation_frames(thread_id: str):
                         else:
                              print(f"Warning: Index de trace ({i}) hors limites ou nœud spécial pour {node_id_from_graph_def}")
 
-
+                    # Appliquer le style de surbrillance avec texte en gras et couleur noire
                     highlight_attrs = ' '.join([f'{k}="{v}"' for k, v in style_config["highlight"].items() if 'edge' not in k])
-                    dot_lines.append(f'  "{node_id_from_graph_def}" [label="{display_label}", {highlight_attrs}];')
+                    dot_lines.append(f'  "{node_id_from_graph_def}" [label=<<B>{display_label}</B>>, {highlight_attrs}];')
                 else:
-                    dot_lines.append(f'  "{node_id_from_graph_def}" [label="{display_label}"];') # Utilise le libellé original pour les nœuds non surlignés
+                    # Appliquer le texte en gras pour tous les noeuds non surlignés aussi
+                    dot_lines.append(f'  "{node_id_from_graph_def}" [label=<<B>{display_label}</B>>];') # Utilise le libellé original pour les nœuds non surlignés
             
             # Ajout des arêtes
             for edge in graph_json["edges"]:

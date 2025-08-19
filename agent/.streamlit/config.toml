@@ -2,7 +2,7 @@
 
 [server]
 enableCORS = true
-corsHeaders = ["*"]
+
 
 [theme]
 secondaryBackgroundColor="#33FFBD"

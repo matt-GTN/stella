@@ -11,6 +11,7 @@ from typing import TypedDict, List, Annotated, Any
 import pandas as pd
 from io import StringIO
 import textwrap
+import streamlit as st
 
 # Graphiques
 import plotly.express as px
@@ -763,61 +764,64 @@ def router(state: AgentState) -> str:
         return "agent"
     
 # --- CONSTRUCTION DU GRAPH ---
-memory = MemorySaver()
-workflow = StateGraph(AgentState)
+@st.cache_resource
+def get_agent_app():
+    memory = MemorySaver()
+    workflow = StateGraph(AgentState)
 
-workflow.add_node("agent", agent_node)
-workflow.add_node("execute_tool", execute_tool_node)
-workflow.add_node("generate_final_response", generate_final_response_node)
-workflow.add_node("cleanup_state", cleanup_state_node)
-workflow.add_node("prepare_data_display", prepare_data_display_node) 
-workflow.add_node("prepare_chart_display", prepare_chart_display_node)
-workflow.add_node("prepare_news_display", prepare_news_display_node)
-workflow.add_node("prepare_profile_display", prepare_profile_display_node)
-workflow.add_node("handle_error", handle_error_node)
+    workflow.add_node("agent", agent_node)
+    workflow.add_node("execute_tool", execute_tool_node)
+    workflow.add_node("generate_final_response", generate_final_response_node)
+    workflow.add_node("cleanup_state", cleanup_state_node)
+    workflow.add_node("prepare_data_display", prepare_data_display_node) 
+    workflow.add_node("prepare_chart_display", prepare_chart_display_node)
+    workflow.add_node("prepare_news_display", prepare_news_display_node)
+    workflow.add_node("prepare_profile_display", prepare_profile_display_node)
+    workflow.add_node("handle_error", handle_error_node)
 
-workflow.set_entry_point("agent")
+    workflow.set_entry_point("agent")
 
-workflow.add_conditional_edges("agent", router, {"execute_tool": "execute_tool", "handle_error": "handle_error", "__end__": END})
-workflow.add_conditional_edges(
-    "execute_tool",
-    router,
-    {
-        "agent": "agent", 
-        "generate_final_response": "generate_final_response",
-        "prepare_data_display": "prepare_data_display", 
-        "prepare_chart_display": "prepare_chart_display",
-        "prepare_news_display": "prepare_news_display", 
-        "prepare_profile_display": "prepare_profile_display",
-        "handle_error": "handle_error",
-        "__end__": END
-    }
-)
+    workflow.add_conditional_edges("agent", router, {"execute_tool": "execute_tool", "handle_error": "handle_error", "__end__": END})
+    workflow.add_conditional_edges(
+        "execute_tool",
+        router,
+        {
+            "agent": "agent", 
+            "generate_final_response": "generate_final_response",
+            "prepare_data_display": "prepare_data_display", 
+            "prepare_chart_display": "prepare_chart_display",
+            "prepare_news_display": "prepare_news_display", 
+            "prepare_profile_display": "prepare_profile_display",
+            "handle_error": "handle_error",
+            "__end__": END
+        }
+    )
 
-# Tous les noeuds finaux mènent d'abord au nettoyage
-workflow.add_edge("generate_final_response", "cleanup_state")
-workflow.add_edge("prepare_profile_display", "cleanup_state")
-workflow.add_edge("prepare_data_display", "cleanup_state")
-workflow.add_edge("prepare_chart_display", "cleanup_state")
-workflow.add_edge("prepare_news_display", "cleanup_state")
-workflow.add_edge("handle_error", "cleanup_state")
+    workflow.add_edge("generate_final_response", "cleanup_state")
+    workflow.add_edge("prepare_profile_display", "cleanup_state")
+    workflow.add_edge("prepare_data_display", "cleanup_state")
+    workflow.add_edge("prepare_chart_display", "cleanup_state")
+    workflow.add_edge("prepare_news_display", "cleanup_state")
+    workflow.add_edge("handle_error", "cleanup_state")
+    workflow.add_edge("cleanup_state", END)
 
-# Après le nettoyage, le cycle est terminé.
-workflow.add_edge("cleanup_state", END)
+    app = workflow.compile(checkpointer=memory)
 
-app = workflow.compile(checkpointer=memory)
+    try:
+        graph = app.get_graph()
+        image_bytes = graph.draw_mermaid_png()
+        with open("agent_workflow.png", "wb") as f:
+            f.write(image_bytes)
+        
+        print("\nVisualisation du graph sauvegardée dans le répertoire en tant que agent_workflow.png \n")
 
-# --- Crée une visualisation du Graph ---
-try:
-    graph = app.get_graph()
-    image_bytes = graph.draw_mermaid_png()
-    with open("agent_workflow.png", "wb") as f:
-        f.write(image_bytes)
+    except Exception as e:
+        print(f"\nJe n'ai pas pu générer la visualisation. Lancez 'pip install playwright' et 'playwright install'. Erreur: {e}\n")
     
-    print("\nVisualisation du graph sauvegardée dans le répertoire en tant que agent_workflow.png \n")
+    return app
 
-except Exception as e:
-    print(f"\nJe n'ai pas pu générer la visualisation. Lancez 'pip install playwright' et 'playwright install'. Erreur: {e}\n")
+app = get_agent_app()
+
 
 # --- Crée une animation du workflow ---
 def generate_trace_animation_frames(thread_id: str):

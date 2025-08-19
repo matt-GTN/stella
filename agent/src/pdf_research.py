@@ -1,5 +1,6 @@
 # agent/src/pdf_research.py
 import os
+import streamlit as st
 from pathlib import Path
 import json
 from typing import List, Dict, Any
@@ -12,7 +13,7 @@ from langchain_core.documents import Document
 class ResearchPDFHandler:
     """Gère le traitement et l'interrogation de documents de recherche PDF - optimisé pour le contenu financier/science des données"""
     
-    def __init__(self, pdf_path: str, persist_directory: str = "./chroma_research_db"):
+    def __init__(self, pdf_path: str, persist_directory: str = "/app/chroma_research_db"):
         self.pdf_path = pdf_path
         self.persist_directory = persist_directory
         self.vectorstore = None
@@ -21,12 +22,11 @@ class ResearchPDFHandler:
     def setup_vectorstore(self):
         """Initialise ou charge le magasin de vecteurs avec le document de recherche PDF"""
         try:
-            if os.path.exists(self.persist_directory):
+            if os.path.exists(self.persist_directory) and os.listdir(self.persist_directory):
                 # Charge le magasin de vecteurs existant
                 embeddings = HuggingFaceEmbeddings(
                     model_name="intfloat/multilingual-e5-small",
                     model_kwargs={'device': 'cpu'},
-                    # Facultatif : Ajoutez des configurations spécifiques au modèle
                     encode_kwargs={'normalize_embeddings': True}
                 )
                 self.vectorstore = Chroma(
@@ -55,7 +55,6 @@ class ResearchPDFHandler:
 
             print(f"Chargé {len(documents)} pages du PDF")
 
-            # Séparateur de texte optimisé pour le contenu financier/technique
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1200,
                 chunk_overlap=300,
@@ -66,14 +65,13 @@ class ResearchPDFHandler:
 
             print(f"Divisé en {len(chunks)} morceaux")
 
-            # Métadonnées améliorées pour le document financier
             for i, chunk in enumerate(chunks):
                 chunk.metadata.update({
                     "chunk_id": i,
                     "source": "rapport_de_recherche_financière",
                     "page_number": chunk.metadata.get("page", 0),
                     "total_chunks": len(chunks),
-                    "language": "multilingual", # Mis à jour pour être plus général
+                    "language": "multilingual",
                     "domain": "financial_data_science"
                 })
 
@@ -136,28 +134,28 @@ class ResearchPDFHandler:
         except:
             return {"error": "Impossible de récupérer les statistiques du document"}
 
-BASE_DIR = Path(__file__).resolve().parents[2]  # remonte de /app/agent/src à /app
-RESEARCH_PDF_PATH = BASE_DIR / "reports" / "Rapport de projet - OPA - NOV24-CDS.pdf"
-research_handler = None
-
-def initialize_research_handler():
-    """Initialise le gestionnaire de recherche - à appeler au démarrage de l'application"""
-    global research_handler
-    try:
-        if os.path.exists(RESEARCH_PDF_PATH):
-            research_handler = ResearchPDFHandler(RESEARCH_PDF_PATH)
-            print("Gestionnaire de recherche initialisé avec succès")
-        else:
-            raise FileNotFoundError(f"PDF de recherche introuvable à : {RESEARCH_PDF_PATH}")
-    except Exception as e:
-        raise Exception(f"Échec de l'initialisation du gestionnaire de recherche : {e}")
+    @staticmethod
+    @st.cache_resource
+    def initialize_research_handler():
+        """Initialise le gestionnaire de recherche - à appeler au démarrage de l'application"""
+        try:
+            base_dir = Path(__file__).resolve().parents[2]
+            research_pdf_path = base_dir / "reports" / "Rapport de projet - OPA - NOV24-CDS.pdf"
+            if os.path.exists(research_pdf_path):
+                research_handler = ResearchPDFHandler(str(research_pdf_path))
+                print("Gestionnaire de recherche initialisé avec succès")
+                return research_handler
+            else:
+                raise FileNotFoundError(f"PDF de recherche introuvable à : {research_pdf_path}")
+        except Exception as e:
+            raise Exception(f"Échec de l'initialisation du gestionnaire de recherche : {e}")
 
 def query_research_document(query: str, max_results: int = 5) -> str:
     """
     Interroge le document de recherche et renvoie les résultats formatés
     Amélioré pour le contenu de la science des données financières
     """
-    global research_handler
+    research_handler = ResearchPDFHandler.initialize_research_handler()
 
     if not research_handler:
         return "Document de recherche non disponible. Veuillez vous assurer que le PDF est correctement chargé."
@@ -191,7 +189,6 @@ def query_research_document(query: str, max_results: int = 5) -> str:
     except Exception as e:
         return f"Erreur lors de l'accès au document de recherche : {str(e)}"
 
-# Fonction d'assistance supplémentaire pour les termes financiers
 def search_financial_concepts(concept: str) -> str:
     """Fonction d'assistance pour rechercher des concepts financiers/science des données spécifiques"""
     financial_queries = {

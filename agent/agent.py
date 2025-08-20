@@ -11,7 +11,6 @@ from typing import TypedDict, List, Annotated, Any
 import pandas as pd
 from io import StringIO
 import textwrap
-import streamlit as st
 
 # Graphiques
 import plotly.express as px
@@ -27,7 +26,7 @@ from src.fetch_data import APILimitError
 from src.chart_theme import stella_theme 
 
 # LangGraph et LangChain
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, ToolMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import AnyMessage, add_messages
@@ -47,26 +46,31 @@ from tools import (
     _fetch_profile_logic,
     _fetch_price_history_logic,
     _compare_fundamental_metrics_logic,
-    _compare_price_histories_logic,
-    _query_research_document_logic
+    _compare_price_histories_logic
+    # _query_research_document_logic imported lazily in execute_tool_node
 )
 
 # Environment variables and constants
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "moonshotai/kimi-k2-instruct"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = "moonshotai/kimi-k2:free"
 LANGSMITH_TRACING = True
 LANGSMITH_ENDPOINT = "https://api.smith.langchain.com"
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 LANGSMITH_PROJECT = "stella"
 
-if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY n'a pas été enregistrée comme variable d'environnement.")
+if not OPENROUTER_API_KEY:
+    raise ValueError("OPENROUTER_API_KEY n'a pas été enregistrée comme variable d'environnement.")
 
 # Initialize the LLM
-llm = ChatGroq(
-    model=GROQ_MODEL,
-    api_key=GROQ_API_KEY,
-    temperature=0
+llm = ChatOpenAI(
+    model=OPENROUTER_MODEL,
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1",
+    temperature=0,
+    default_headers={
+        "HTTP-Referer": "https://github.com/DataScientest-Studio/nov24_cds_opa",
+        "X-Title": "Stella Financial Assistant"
+    }
 )
 
 # Objet AgentState pour stocker et modifier l'état de l'agent entre les nœuds
@@ -148,11 +152,14 @@ Je suis Stella 👩🏻, une assistante experte financière créée par une équ
 ---
 
 **Séquence d'analyse complète (Actions Américaines Uniquement)**
-Quand un utilisateur te demande une analyse complète, tu DOIS suivre cette séquence d'outils :
+Quand un utilisateur te demande une analyse complète, tu DOIS appeler TOUS les outils nécessaires EN UNE SEULE FOIS :
 1.  `search_ticker` si le nom de l'entreprise est donné plutôt que le ticker, et que tu n'es pas sûre du ticker.
 2.  `fetch_data` avec le ticker demandé.
 3.  `preprocess_data` pour nettoyer les données.
 4.  `analyze_risks` pour obtenir un verdict.
+
+**IMPORTANT : Pour une analyse complète, tu dois faire PLUSIEURS appels d'outils dans la même réponse.** Par exemple, si l'utilisateur demande "Analyse AAPL", tu dois appeler fetch_data, preprocess_data ET analyze_risks dans la même réponse, sans attendre de retour entre chaque outil.
+
 Ta tâche est considérée comme terminée après l'appel à `analyze_risks`. La réponse finale avec le graphique sera générée automatiquement.
 Exemples de demandes devant déclencher une analyse complète : 
 * "Analyse Tesla"
@@ -164,10 +171,12 @@ Si l'utilisateur donne un nom de société (comme 'Apple' ou 'Microsoft') au lie
 Sinon, ton action doit être d'utiliser l'outil `search_ticker` pour trouver le ticker correct.
 
 **Analyse et Visualisation Dynamique (Actions Américaines Uniquement) :**
-Quand un utilisateur te demande de "montrer", "visualiser" des métriques spécifiques (par exemple, "montre-moi l'évolution du ROE"), tu DOIS suivre cette séquence :
+Quand un utilisateur te demande de "montrer", "visualiser" des métriques spécifiques (par exemple, "montre-moi l'évolution du ROE"), tu DOIS appeler TOUS les outils nécessaires EN UNE SEULE FOIS :
 1.  Appelle `fetch_data`.
 2.  Appelle `preprocess_data`.
 3.  Appelle `create_dynamic_chart`.
+
+**IMPORTANT : Tu dois faire ces TROIS appels d'outils dans la même réponse**, sans attendre de retour entre chaque outil.
 
 **Analyse Comparative :**
 Quand l'utilisateur demande de comparer plusieurs entreprises (ex: "compare le ROE de Google et Apple" ou "performance de l'action de MSFT vs GOOGL"), tu DOIS :
@@ -180,16 +189,19 @@ Quand l'utilisateur demande de comparer plusieurs entreprises (ex: "compare le R
     *   Pour une comparaison de **prix** (mondiale) : `comparison_type='price'`, `metric='price'`.
 
 **AFFICHAGE DE DONNEES** 
-Si l'utilisateur te demande d'afficher des données tu dois toujours suivre cette séquence : 
-* Vérifier si l'entreprise est américaine ou internationale. Répondre en rappelant tes limitesn si l'entreprise n'est pas américaine. 
-* Si des données sont disponibles dans le contexte, utiliser l'outil `display_raw_data` ou `display_processed_data` selon le type de données demandées.
-* Si des données ne sont pas disponibles, tu dois d'abord appeler `fetch_data` pour récupérer les données, puis utiliser l'outil approprié pour les afficher.
+Si l'utilisateur te demande d'afficher des données, tu dois appeler TOUS les outils nécessaires EN UNE SEULE FOIS :
+* Vérifier si l'entreprise est américaine ou internationale. Répondre en rappelant tes limites si l'entreprise n'est pas américaine. 
+* Si des données ne sont pas disponibles dans le contexte, tu dois appeler `fetch_data` ET ENSUITE `display_raw_data` ou `display_processed_data` dans la même réponse.
+* Si des données sont déjà disponibles, appelle directement l'outil d'affichage approprié.
+
+**IMPORTANT : Pour afficher des données traitées, tu dois faire fetch_data, preprocess_data ET display_processed_data dans la même réponse** si les données ne sont pas déjà disponibles.
+
 Tu dois bien comprendre que tu ne dois jamais afficher les données brutes ou traitées sans utiliser ces outils, car ils formatent correctement les données pour l'affichage.
 Exemples : 
-* "Affiche les données brutes de l'entreprise" -> `display_raw_data`
-* "Affiche les données traitées" -> `display_processed_data`
-* "Montre-moi les données" -> `display_raw_data` (par défaut, car c'est le plus courant)
-* "Tableau des données" -> `display_raw_data` (par défaut, car c'est le plus courant)
+* "Affiche les données brutes de Tesla" -> `fetch_data` + `display_raw_data` (en une fois)
+* "Affiche les données traitées d'Apple" -> `fetch_data` + `preprocess_data` + `display_processed_data` (en une fois)
+* "Montre-moi les données" -> `display_raw_data` (si données déjà disponibles)
+* "Tableau des données" -> `display_raw_data` (si données déjà disponibles)
 
 **DEMANDES LIEES AU PROJET OPA**
 Tu as accès au document de recherche interne l'équipe qui t'a créée via l'outil `query_research`.
@@ -254,9 +266,20 @@ def agent_node(state: AgentState):
     # On ajoute l'historique de la conversation depuis l'état
     current_messages.extend(state['messages'])
 
+    # 🕐 TIMING: Start measuring LLM inference time
+    import time
+    llm_start_time = time.time()
+    print(f"⏱️  [LLM] Starting inference call to {OPENROUTER_MODEL}...")
+    
     # On invoque le LLM avec la liste de messages complète
     # Cette liste est locale et ne modifie pas l'état directement
     response = llm.bind_tools(available_tools).invoke(current_messages)
+    
+    # 🕐 TIMING: End measuring LLM inference time
+    llm_end_time = time.time()
+    llm_duration = llm_end_time - llm_start_time
+    print(f"⏱️  [LLM] Inference completed in {llm_duration:.2f} seconds")
+    
     print(f"response.content: {response.content}")
     return {"messages": [response]}
 
@@ -271,12 +294,20 @@ def execute_tool_node(state: AgentState):
     tool_outputs = []
     current_state_updates = {}
     
+    # Create a working copy of state that gets updated as we execute tools
+    working_state = state.copy()
+    
     # On gère le cas où plusieurs outils sont appelés, bien que ce soit rare ici.
     for tool_call in action_message.tool_calls:
         tool_name = tool_call['name']
         tool_args = tool_call['args']
         tool_id = tool_call['id']
         print(f"Le LLM a décidé d'appeler le tool : {tool_name} - avec les arguments : {tool_args}")
+        
+        # 🕐 TIMING: Start measuring tool execution time
+        import time
+        tool_start_time = time.time()
+        print(f"⏱️  [TOOL] Starting execution of '{tool_name}'...")
 
         try:
             if tool_name == "search_ticker":
@@ -292,6 +323,9 @@ def execute_tool_node(state: AgentState):
                     output_df = _fetch_data_logic(ticker=tool_args.get("ticker"))
                     current_state_updates["fetched_df_json"] = output_df.to_json(orient='split')
                     current_state_updates["ticker"] = tool_args.get("ticker")
+                    # Update working state immediately for next tool
+                    working_state["fetched_df_json"] = current_state_updates["fetched_df_json"]
+                    working_state["ticker"] = current_state_updates["ticker"]
                     tool_outputs.append(ToolMessage(tool_call_id=tool_id, content="[Données récupérées avec succès.]"))
                 except APILimitError as e:
                     user_friendly_error = "Désolé, il semble que j'aie un problème d'accès à mon fournisseur de données. Peux-tu réessayer plus tard ?"
@@ -320,23 +354,37 @@ def execute_tool_node(state: AgentState):
                 tool_outputs.append(ToolMessage(tool_call_id=tool_id, content=news_summary))
                 
             elif tool_name == "preprocess_data":
-                if not state.get("fetched_df_json"):
+                # Check working state first, then fall back to original state
+                fetched_df_json = current_state_updates.get("fetched_df_json") or working_state.get("fetched_df_json")
+                if not fetched_df_json:
                     raise ValueError("Impossible de prétraiter les données car elles n'ont pas encore été récupérées.")
-                fetched_df = pd.read_json(StringIO(state["fetched_df_json"]), orient='split')
+                fetched_df = pd.read_json(StringIO(fetched_df_json), orient='split')
                 output = _preprocess_data_logic(df=fetched_df)
                 current_state_updates["processed_df_json"] = output.to_json(orient='split')
+                # Update working state immediately for next tool
+                working_state["processed_df_json"] = current_state_updates["processed_df_json"]
                 tool_outputs.append(ToolMessage(tool_call_id=tool_id, content="[Données prétraitées avec succès.]"))
 
             elif tool_name == "analyze_risks":
-                if not state.get("processed_df_json"):
+                # Check working state first, then fall back to original state  
+                processed_df_json = current_state_updates.get("processed_df_json") or working_state.get("processed_df_json")
+                if not processed_df_json:
                     raise ValueError("Impossible de faire une prédiction car les données n'ont pas encore été prétraitées.")
-                processed_df = pd.read_json(StringIO(state["processed_df_json"]), orient='split')
+                processed_df = pd.read_json(StringIO(processed_df_json), orient='split')
                 output = _analyze_risks_logic(processed_data=processed_df)
                 current_state_updates["analysis"] = output
+                # Update working state immediately for potential next tool
+                working_state["analysis"] = current_state_updates["analysis"]
                 tool_outputs.append(ToolMessage(tool_call_id=tool_id, content=output))
             
             elif tool_name == "create_dynamic_chart":
-                data_json_for_chart = state.get("processed_df_json") or state.get("fetched_df_json")
+                # Check working state first for data access in tool chains
+                data_json_for_chart = (
+                    current_state_updates.get("processed_df_json") or 
+                    working_state.get("processed_df_json") or 
+                    current_state_updates.get("fetched_df_json") or 
+                    working_state.get("fetched_df_json")
+                )
                 if not data_json_for_chart:
                     raise ValueError("Aucune donnée disponible pour créer un graphique.")
                 
@@ -431,6 +479,8 @@ def execute_tool_node(state: AgentState):
             
             elif tool_name == "query_research":
                 query = tool_args.get("query")
+                # Lazy import to avoid initialization delays
+                from src.pdf_research import query_research_document as _query_research_document_logic
                 research_result = _query_research_document_logic(query=query)
                 tool_outputs.append(ToolMessage(tool_call_id=tool_id, content=research_result))
             
@@ -440,6 +490,11 @@ def execute_tool_node(state: AgentState):
             tool_outputs.append(ToolMessage(tool_call_id=tool_id, content=f"[ERREUR: {error_msg}]"))
             current_state_updates["error"] = error_msg
             print(error_msg)
+        
+        # 🕐 TIMING: End measuring tool execution time
+        tool_end_time = time.time()
+        tool_duration = tool_end_time - tool_start_time
+        print(f"⏱️  [TOOL] '{tool_name}' completed in {tool_duration:.2f} seconds")
             
     current_state_updates["messages"] = tool_outputs
     return current_state_updates
@@ -735,7 +790,7 @@ def handle_error_node(state: AgentState):
 
 # --- Router pour diriger le flux du graph ---
 def router(state: AgentState) -> str:
-    """Le routeur principal du graphe, version finale robuste."""
+    """Le routeur principal du graphe, version finale robuste avec support du tool chaining."""
     print("\n--- ROUTEUR: Évaluation de l'état pour choisir la prochaine étape ---")
 
     # On récupère les messages de l'état
@@ -769,11 +824,24 @@ def router(state: AgentState) -> str:
     if not ai_message_with_tool_call:
         print("Routeur -> Décision: Aucune action claire à prendre (pas d'appel d'outil trouvé), fin du processus.")
         return END
+    
+    # Check if there are multiple tool calls to execute in sequence
+    remaining_tool_calls = ai_message_with_tool_call.tool_calls
+    executed_tool_calls = [msg for msg in reversed(messages) if isinstance(msg, ToolMessage)]
+    
+    print(f"--- ROUTEUR: Nombre total d'outils à exécuter: {len(remaining_tool_calls)}, déjà exécutés: {len(executed_tool_calls)}")
+    
+    # If we still have tools to execute from the same AI message, continue executing them
+    if len(executed_tool_calls) < len(remaining_tool_calls):
+        next_tool_name = remaining_tool_calls[len(executed_tool_calls)]['name']
+        print(f"Routeur -> Décision: Outil suivant dans la chaîne: '{next_tool_name}', continuer l'exécution.")
+        return "execute_tool"
         
+    # All tools from the current AI message have been executed, check the last executed tool
     tool_name = ai_message_with_tool_call.tool_calls[-1]['name']
-    print(f"--- ROUTEUR: Le dernier outil appelé était '{tool_name}'. ---")
+    print(f"--- ROUTEUR: Tous les outils de la chaîne ont été exécutés, le dernier était '{tool_name}'. ---")
 
-    # Maintenant, on décide de la suite en fonction de cet outil.
+    # Maintenant, on décide de la suite en fonction du dernier outil de la chaîne.
     if tool_name == 'analyze_risks':
         return "generate_final_response"
     elif tool_name == 'compare_stocks': 
@@ -792,7 +860,6 @@ def router(state: AgentState) -> str:
         return "agent"
     
 # --- CONSTRUCTION DU GRAPH ---
-@st.cache_resource
 def get_agent_app():
     memory = MemorySaver()
     workflow = StateGraph(AgentState)
@@ -1035,4 +1102,4 @@ if __name__ == '__main__':
                 print("\n[L'image a été générée et ajoutée au message final]")
 
     conversation_id = f"test_session_{uuid.uuid4()}"
-    run_conversation(conversation_id, "S'il te plaît, fais une analyse complète de GOOGL")
+    run_conversation(conversation_id, "Qui sont les créateurs du projet ?")

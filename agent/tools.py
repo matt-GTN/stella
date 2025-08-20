@@ -17,7 +17,8 @@ from src.fetch_profile import fetch_company_profile as _fetch_profile_logic
 from src.fetch_price import fetch_price_history as _fetch_price_history_logic
 from src.compare_fundamentals import compare_fundamental_metrics as _compare_fundamental_metrics_logic
 from src.compare_prices import compare_price_histories as _compare_price_histories_logic
-from src.pdf_research import query_research_document as _query_research_document_logic
+# PDF research is imported lazily to avoid initialization delays
+# from src.pdf_research import query_research_document as _query_research_document_logic
 from src.chart_theme import stella_theme
 
 

@@ -13,9 +13,17 @@ from langchain_core.documents import Document
 class ResearchPDFHandler:
     """Gère le traitement et l'interrogation de documents de recherche PDF - optimisé pour le contenu financier/science des données"""
     
-    def __init__(self, pdf_path: str, persist_directory: str = "/app/chroma_research_db"):
+    def __init__(self, pdf_path: str, persist_directory: str = None):
         self.pdf_path = pdf_path
-        self.persist_directory = persist_directory
+        # Auto-detect environment and set appropriate path
+        if persist_directory is None:
+            if os.path.exists("/app"):  # Docker/production environment
+                self.persist_directory = "/app/chroma_research_db"
+            else:  # Local development environment
+                base_dir = Path(__file__).resolve().parents[2]
+                self.persist_directory = str(base_dir / "chroma_research_db")
+        else:
+            self.persist_directory = persist_directory
         self.vectorstore = None
         self.setup_vectorstore()
     
@@ -150,18 +158,28 @@ class ResearchPDFHandler:
         except Exception as e:
             raise Exception(f"Échec de l'initialisation du gestionnaire de recherche : {e}")
 
+# Global variable to store the research handler
+_research_handler = None
+
 def query_research_document(query: str, max_results: int = 5) -> str:
     """
     Interroge le document de recherche et renvoie les résultats formatés
     Amélioré pour le contenu de la science des données financières
     """
-    research_handler = ResearchPDFHandler.initialize_research_handler()
+    global _research_handler
+    
+    # Lazy initialization - only create when actually needed
+    if _research_handler is None:
+        try:
+            _research_handler = ResearchPDFHandler.initialize_research_handler()
+        except Exception as e:
+            return f"Erreur lors de l'initialisation du gestionnaire de recherche : {str(e)}"
 
-    if not research_handler:
+    if not _research_handler:
         return "Document de recherche non disponible. Veuillez vous assurer que le PDF est correctement chargé."
 
     try:
-        results = research_handler.search_research(query, k=max_results)
+        results = _research_handler.search_research(query, k=max_results)
 
         if not results:
             return f"Aucune information pertinente trouvée dans le document de recherche pour : '{query}'"

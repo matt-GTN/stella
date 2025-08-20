@@ -14,8 +14,8 @@ yfinance==0.2.64
 requests==2.32.4
 
 # --- Ecosystème LangChain & LangGraph ---
-openai==1.54.4
-langchain-openai==0.2.8
+openai==1.95.1
+langchain-openai==0.3.27
 langgraph==0.4.8
 langsmith==0.4.1
 langchain-core==0.3.72

@@ -6,7 +6,7 @@ import os
 import numpy as np # Assurez-vous que numpy est importé
 
 # Le chemin vers votre modèle
-MODEL_PATH = 'models/rf_fundamental_market_classifier.joblib' 
+MODEL_PATH = 'models/rf_fundamental_classifier.joblib' 
 
 def analyse_risks(processed_data: pd.DataFrame) -> str:
     """
